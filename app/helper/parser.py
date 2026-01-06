@@ -4,6 +4,8 @@ from pathlib import Path
 from db import init_db, connect_db
 import pandas as pd
 import numpy as np
+from pydantic import ValidationError
+from models import StudentInfo, ExamInfo, ExamAssignment
 
 pdf = Path("/workspaces/exam-room-checker/storage/student_lists/2025_finals_setB/")
 db_schema = "/workspaces/exam-room-checker/storage/schema.sql"
@@ -114,17 +116,41 @@ def get_student_data(pdf_file, page_index: int = 0):
     student_section = table.iloc[:, 2]
 
     # return all data
-    return {
-        "student_number": student_number.tolist(),
-        "student_name": student_name.tolist(),
-        "student_section": student_section.tolist(),
-        "course_title": course_title,
-        "course_code": course_code,
-        "course_set": course_set,
-        "date": date,
-        "time": time,
-        "room_number": room_num
-    }
+    try:
+        student_info = StudentInfo(
+            student_number=student_number.tolist(),
+            student_name=student_name.tolist(),
+            student_section=student_section.tolist(),
+        ) # validation happens here
+
+        exam_info = ExamInfo(
+            course_title=course_title,
+            course_code=course_code,
+            course_set=course_set,
+            date=date,
+            time=time,
+            room_number=room_num
+        ) # validation happens here
+    except ValidationError as e:
+        print(f"Validation error for {pdf_file} page {page_index}: {e}")
+        return {}
+
+    return ExamAssignment(
+        exam_info=exam_info,
+        student_info=student_info
+    ) # validation happens here
+
+    # return {
+    #     "student_number": student_number.tolist(),
+    #     "student_name": student_name.tolist(),
+    #     "student_section": student_section.tolist(),
+    #     "course_title": course_title,
+    #     "course_code": course_code,
+    #     "course_set": course_set,
+    #     "date": date,
+    #     "time": time,
+    #     "room_number": room_num
+    # }
 
 # put it on database
 def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
@@ -136,14 +162,14 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
         for file in pdf_dir.glob("*.pdf"):
             with pdfplumber.open(file) as pdf:
                 for page in range(len(pdf.pages)):
-                    student_data = get_student_data(file, page) # call get_student_data()
-                    if not isinstance(student_data, dict) or not student_data:
+                    exam_assignment = get_student_data(file, page) # call get_student_data()
+                    if not isinstance(exam_assignment, ExamAssignment) or not exam_assignment:
                         print(f"Skipping {file} page {page}: invalid data")
                         continue
                     
-                    for index, student in enumerate(student_data["student_name"]): # loop through student in student_data
-                        student_number = student_data["student_number"][index]
-                        student_section = student_data["student_section"][index]
+                    for index, student in enumerate(exam_assignment.student_info.student_name): # loop through student in student_data
+                        student_number = exam_assignment.student_info.student_number[index]
+                        student_section = exam_assignment.student_info.student_section[index]
                         try:
                             connection.execute( # insert student data to db
                                 "INSERT INTO exam_assignments ("
@@ -163,12 +189,12 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
                                         student_number,
                                         student,
                                         student_section,
-                                        student_data["course_title"],
-                                        student_data["course_code"],
-                                        student_data["course_set"],
-                                        student_data["date"],
-                                        student_data["time"],
-                                        student_data["room_number"]
+                                        exam_assignment.exam_info.course_title,
+                                        exam_assignment.exam_info.course_code,
+                                        exam_assignment.exam_info.course_set,
+                                        exam_assignment.exam_info.date,
+                                        exam_assignment.exam_info.time,
+                                        exam_assignment.exam_info.room_number
                                         )
                             )
                             connection.commit()
@@ -182,7 +208,7 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
             print("Scanning successful. Set A added to the database.")
 
 if __name__ == "__main__":
-    # put_on_db(db_path=db_path, db_schema=db_schema, exam_name="2025_Finals_1st_Sem", pdf_dir=pdf)
+    put_on_db(db_path=db_path, db_schema=db_schema, exam_name="2025_Finals_1st_Sem", pdf_dir=pdf)
     # After put_on_db call
     connection = connect_db(db_path)
     if connection:
