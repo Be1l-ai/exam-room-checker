@@ -1,15 +1,17 @@
-import pdfplumber
-import sqlite3
+import pdfplumber, os, sqlite3
 from pathlib import Path
-from db import init_db, connect_db
 import pandas as pd
 import numpy as np
+from .db import init_db, connect_db
+from dotenv import load_dotenv
 from pydantic import ValidationError
-from models import StudentInfo, ExamInfo, ExamAssignment
+from .models import StudentInfo, ExamInfo, ExamAssignment
 
-pdf = Path("/workspaces/exam-room-checker/storage/student_lists/2025_finals_setB/")
-db_schema = "/workspaces/exam-room-checker/storage/schema.sql"
-db_path = "/workspaces/exam-room-checker/storage/exam_assignments.db"
+pdf = Path("/workspaces/exam-room-checker/storage/student_lists/2025_finals_setB/") # this is not hardcoded
+
+load_dotenv()
+db_path = os.getenv("DB_PATH")
+db_schema = os.getenv("DB_SCHEMA")
 
 def find_text(text, keyword):
     lines = text.split('\n')
@@ -82,7 +84,7 @@ def get_table(pdf_file, page_index: int = 0):
     except Exception as e:
         return pd.DataFrame()  # Return empty DataFrame on error
 
-def get_student_data(pdf_file, page_index: int = 0):
+def get_student_data(pdf_file, page_index: int = 0) -> ExamAssignment:
     # get meta data
         # get course title, set and code (just get once)
     course_title, course_code, course_set = get_course(pdf_file, 0)
@@ -153,7 +155,7 @@ def get_student_data(pdf_file, page_index: int = 0):
     # }
 
 # put it on database
-def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
+def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:Path): # TODO:add a return type
     # loop through all pdf
     connection = None
     try:
@@ -163,6 +165,7 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
             with pdfplumber.open(file) as pdf:
                 for page in range(len(pdf.pages)):
                     exam_assignment = get_student_data(file, page) # call get_student_data()
+
                     if not isinstance(exam_assignment, ExamAssignment) or not exam_assignment:
                         print(f"Skipping {file} page {page}: invalid data")
                         continue
@@ -173,7 +176,7 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
                         try:
                             connection.execute( # insert student data to db
                                 "INSERT INTO exam_assignments ("
-                                "exam_name,"
+                                "exam_name," # TODO: can i find a way to shorten this?
                                 "student_number,"
                                 "student_name,"
                                 "student_section,"
@@ -199,7 +202,7 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
                             )
                             connection.commit()
                         except sqlite3.Error as e:
-                            print(f"Error inserting data into database: {e}")
+                            print(f"Error inserting data into database: {e}") # return instead? no if we return its gonna stop the loop
     except Exception as e:
         print(f"Error processing PDF files: {e}")
     finally:
@@ -207,23 +210,21 @@ def put_on_db(db_path, db_schema, exam_name:str, pdf_dir:str):
             connection.close()
             print("Scanning successful. Set A added to the database.")
 
-if __name__ == "__main__":
-    put_on_db(db_path=db_path, db_schema=db_schema, exam_name="2025_Finals_1st_Sem", pdf_dir=pdf)
-    # After put_on_db call
-    connection = connect_db(db_path)
+def write_to_csv(db_path, args_output):
+    keys = ["id", "exam_name", "course_title", "course_code", "course_set", "date", "time", "room_number", "student_number", "student_name", "student_section"]
+    connection = connect_db(db_path) # TODO: hardcode path or take it as an input
     if connection:
         try:
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM exam_assignments")
             rows = cursor.fetchall()
-            print("Database contents:")
-            with open("/workspaces/exam-room-checker/storage/database_log.txt", "w") as log_file:
-                log_file.write("Database contents:\n")
-                for row in rows:
-                    log_file.write(str(row) + "\n")
-                log_file.write(f"Total rows: {len(rows)}\n")
-            print(f"Log written to /workspaces/exam-room-checker/storage/database_log.txt")
+            student_data = pd.DataFrame(rows, columns=keys)
+            student_data.to_csv(args_output, index=False)
+            print(f"Data written to {args_output}")
         except sqlite3.Error as e:
             print(f"Error querying database: {e}")
         finally:
             connection.close()
+
+if __name__ == "__main__":
+    put_on_db(db_path=db_path, db_schema=db_schema, exam_name="2025_Finals_1st_Sem", pdf_dir=pdf)
