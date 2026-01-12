@@ -22,3 +22,6 @@ def init_db(db_path, db_schema): # initialize the database with schema
             print(f"Error initializing database: {e}")
         finally:
             connection.close()
+
+if __name__ == "__main__":
+    pass
