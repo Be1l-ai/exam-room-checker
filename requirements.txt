@@ -21,6 +21,7 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 pypdfium2==5.2.0
 python-dateutil==2.9.0.post0
+python-dotenv==1.2.1
 pytz==2025.2
 six==1.17.0
 slowapi==0.1.9
