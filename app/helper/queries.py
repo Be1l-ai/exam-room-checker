@@ -1,18 +1,12 @@
 import sqlite3
-import sys
-import pandas as pd
-from pathlib import Path
-
-# Add workspace root to path for absolute imports
-sys.path.append('/workspaces/exam-room-checker')
-from app.helper.db import connect_db
+from db import connect_db
 
 db_path = "/workspaces/exam-room-checker/storage/exam_assignments.db"
 
 def search(search:str, column:str | None = None) -> list:
     # basic search, return list of tuple of matching entries (tuple converter to dict)
     if not search.strip(): # catch empty param
-        return ["Search term must not be empty."]
+        return ["ERROR-Search term must not be empty."]
 
     # connect to db
     keys = ["id", "exam_name", "course_title", "course_code", "course_set", "date", "time", "room_number", "student_number", "student_name", "student_section"]
@@ -23,8 +17,7 @@ def search(search:str, column:str | None = None) -> list:
         connection.row_factory = sqlite3.Row
     # use Select and Where sql statements to search for the given parameter
         if column and column in keys: # search only for specific column on the table
-            special_char ="!@#$%^&*()<>,./-_=+"
-            cursor.execute("SELECT * FROM exam_assignments WHERE ? LIKE ?;", (column, search))
+            cursor.execute(f"SELECT * FROM exam_assignments WHERE {column} LIKE ?;", (f"%{search}%",))
 
         else: # search all columns if theres no specific column or specified column doesnt exist
             cursor.execute(
@@ -63,10 +56,14 @@ def get_student(student_name:str) -> list: # only work on correct name format ri
     # try with fullname then if empty fall back to first or last name (eg. Cantiga[0], Ken Lester T. or Ken[0] Lester T. Cantiga)
     # else exit
     students = search(search=student_name, column="student_name")
+    
     if not students or students == []:
         if len(student_name.split(" ")) < 2:
             return [f"No students found with name containing '{student_name}'"]
         students = search(student_name.split(" ")[0]) # this is a list of dict
+
+    if "ERROR" in students[0]: # catch errors
+        return students
     
     # filter to that one specific name (main name)
     specific_students = [entry for entry in students if entry["student_name"] == student_name] # returns a row
@@ -83,11 +80,31 @@ def get_student(student_name:str) -> list: # only work on correct name format ri
 def get_course_by_exam(exam_name:str) -> list:
     # get all exam with the same name
 
-    # use search() to get all the exam with the same name
+    # validation
+    if not exam_name.strip():
+        return ["exam name cannot be empty"]
+
+    # use search() to get all the exam with the same name, returns list of dict
+    all_exam = search(exam_name, "exam_name") # exam name example: "Finals 1st Semester 2025" "2025_Finals_1st_Sem"
+
+    if all_exam == []:
+        return ["No result"]
+    if "ERROR" in all_exam[0]:
+        return all_exam
+
     # remove duplicates course_title
-    # list down all course_title under the exam_nam
+    seen_couse_title = set()
+    unique_course = []
+
+    for course in all_exam:
+        course_title = course["course_title"]
+        if course_title not in seen_couse_title:
+            unique_course.append(course) # list down all course_title under the exam_name
+            seen_couse_title.add(course_title)
+
+    # print(unique_course)
     # return list of course_title
-    pass
+    return unique_course
 
 def get_course(course_code:str, course_title:str) -> str:
     # get course with the same code or title

@@ -1,4 +1,4 @@
-from queries import search, get_student
+from queries import search, get_student, get_course_by_exam
 
 def test_search():
     results = search("Ken")
@@ -47,12 +47,23 @@ def test_get_student():
     print(student1)
     print(student2)
 
+def test_get_course_by_exam():
+    final_exams = get_course_by_exam("2025_Finals_1st_Sem")
+    midterm_exams = get_course_by_exam("Midterms")
+    s2025_exam = get_course_by_exam("2025")
+    assert final_exams != []
+    assert isinstance(midterm_exams[0], str)
+    assert isinstance(s2025_exam, list)
+    print(final_exams)
+    print(midterm_exams)
+    print(s2025_exam)
 
 if __name__ == "__main__":
-    #test_search()
-    #test_search_no_results()
-    #test_search_special_characters()
-    #test_search_specific()
-    #test_search_strict_name()
-    test_get_student()
+    # test_search()
+    # test_search_no_results()
+    # test_search_special_characters()
+    # test_search_specific()
+    # test_search_strict_name()
+    # test_get_student()
+    test_get_course_by_exam()
     print("All tests done.")
