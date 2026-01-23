@@ -1,4 +1,4 @@
-from queries import search, get_student, get_course_by_exam
+from queries import search, get_student, get_course_by_exam, get_course
 
 def test_search():
     results = search("Ken")
@@ -58,6 +58,11 @@ def test_get_course_by_exam():
     print(midterm_exams)
     print(s2025_exam)
 
+def test_get_course():
+    math = get_course(course_title="Math")
+    code = get_course("age8 00")
+    print(code)
+
 if __name__ == "__main__":
     # test_search()
     # test_search_no_results()
@@ -65,5 +70,6 @@ if __name__ == "__main__":
     # test_search_specific()
     # test_search_strict_name()
     # test_get_student()
-    test_get_course_by_exam()
+    # test_get_course_by_exam()
+    test_get_course()
     print("All tests done.")
