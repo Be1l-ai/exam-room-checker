@@ -1,7 +1,7 @@
 import sqlite3
 from db import connect_db
 
-db_path = "/workspaces/exam-room-checker/storage/exam_assignments.db"
+db_path = "/workspaces/exam-room-checker/storage/exam_assignments.db" # use .env
 
 def search(search:str, column:str | None = None) -> list:
     # basic search, return list of tuple of matching entries (tuple converter to dict)
@@ -82,7 +82,7 @@ def get_course_by_exam(exam_name:str) -> list:
 
     # validation
     if not exam_name.strip():
-        return ["exam name cannot be empty"]
+        return ["ERROR-exam name cannot be empty"]
 
     # use search() to get all the exam with the same name, returns list of dict
     all_exam = search(exam_name, "exam_name") # exam name example: "Finals 1st Semester 2025" "2025_Finals_1st_Sem"
@@ -104,15 +104,29 @@ def get_course_by_exam(exam_name:str) -> list:
 
     # print(unique_course)
     # return list of course_title
-    return unique_course
+    if unique_course:
+        return unique_course
+    
+    return ["ERROR-Unknown error"]
 
-def get_course(course_code:str, course_title:str) -> str:
+def get_course(course_code:str=None, course_title:str=None) -> list:
     # get course with the same code or title
+    if not course_code and not course_title:
+        return ["ERROR-No course code or title given, give at least one"]
 
     # get all course with the same code or title using search()
-    # remove duplicates
+    if course_code and course_code.strip():
+        courses = search(course_code, "course_code")
+    elif course_title and course_title.strip():
+        courses = search(course_title, "course_title")
+    else:
+        courses = ["ERROR-Empty course code or title"]
+    
     # return list of course_code and its course_title
-    pass
+    if courses:
+        return courses
+    
+    return ["ERROR-Unknown error course code or title"]
 
 def get_students_by_room(room_number:str) -> list:
     # get all student in the same room
