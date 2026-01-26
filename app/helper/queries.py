@@ -132,10 +132,17 @@ def get_students_by_room(room_number:str) -> list:
     # get all student in the same room
 
     # use search() to get all student in the same room
+    if not room_number.isdigit() and len(room_number) < 3: # double check the validation here, im not sure if the logic is right
+        return ["EEROR-Invalid room number"]
+
+    students = search(room_number, "room_number")
+
     # group the student by course_code/title
+    if students:
+        return students
     # put the group into their corresponding room_number
     # return the room_number with list of students
-    pass
+    return ["ERROR-Unknown error"]
 
 def get_student_room(student_name:str) -> list:
     # get the room number of a student

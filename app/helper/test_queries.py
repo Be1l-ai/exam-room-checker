@@ -1,4 +1,4 @@
-from queries import search, get_student, get_course_by_exam, get_course
+from queries import search, get_student, get_course_by_exam, get_course, get_students_by_room
 
 def test_search():
     results = search("Ken")
@@ -63,6 +63,10 @@ def test_get_course():
     code = get_course("age8 00")
     print(code)
 
+def test_get_students_by_room():
+    students = get_students_by_room("7031")
+    print(students) # TODO:fix all test units in future
+
 if __name__ == "__main__":
     # test_search()
     # test_search_no_results()
@@ -71,5 +75,6 @@ if __name__ == "__main__":
     # test_search_strict_name()
     # test_get_student()
     # test_get_course_by_exam()
-    test_get_course()
+    # test_get_course()
+    test_get_students_by_room()
     print("All tests done.")
